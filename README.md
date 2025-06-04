@@ -4,7 +4,7 @@ This simple web page lets you search for any baseball player by name and shows s
 
 ## Usage
 
-Open `index.html` in your browser. Type a player's name and you'll see autocomplete suggestions. Click a suggestion to fill in the input box.
+Open `index.html` in your browser. Type a player's name and you'll see autocomplete suggestions. Use the year box to set the season you're interested in. Once you click a suggestion the page will fetch that player's stats for the selected season and show the most similar qualified player from the same year.
 
 To serve locally (optional):
 
