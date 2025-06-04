@@ -15,9 +15,11 @@ body { font-family: Arial, sans-serif; margin: 20px; }
 <h1>Baseball Player Search</h1>
 <input type="text" id="search" placeholder="Type a player's name..." autocomplete="off" />
 <div id="results"></div>
+<div id="playerStats"></div>
 <script>
 const searchInput = document.getElementById('search');
 const resultsDiv = document.getElementById('results');
+const statsDiv = document.getElementById('playerStats');
 
 let debounceTimeout;
 
@@ -43,12 +45,109 @@ function searchPlayers(query) {
           div.addEventListener('click', () => {
             searchInput.value = div.textContent;
             resultsDiv.innerHTML = '';
+            fetchPlayerAndSimilar(person.id);
           });
           resultsDiv.appendChild(div);
         });
       }
     })
-    .catch(err => console.error(err));
+      .catch(err => console.error(err));
+}
+
+function fetchPlayerAndSimilar(id) {
+  statsDiv.textContent = 'Loading stats...';
+  fetch(`https://statsapi.mlb.com/api/v1/people/${id}?hydrate=stats(group=hitting,pitching,type=season,season=2023)`)
+    .then(r => r.json())
+    .then(data => {
+      const person = data.people[0];
+      const isPitcher = person.primaryPosition && person.primaryPosition.abbreviation === 'P';
+      const group = isPitcher ? 'pitching' : 'hitting';
+      const statsObj = person.stats.find(s => s.group.displayName.toLowerCase() === group);
+      if (!statsObj || !statsObj.splits.length) throw new Error('No stats');
+      const playerMetrics = computeMetrics(statsObj.splits[0].stat, isPitcher);
+      fetch(`https://statsapi.mlb.com/api/v1/stats?stats=season&group=${group}&season=2023&playerPool=qualified&limit=300`)
+        .then(r2 => r2.json())
+        .then(allData => {
+          let best;
+          allData.stats[0].splits.forEach(split => {
+            if (split.player.id === id) return;
+            const m = computeMetrics(split.stat, isPitcher);
+            const diff = similarity(playerMetrics, m, isPitcher);
+            if (!best || diff < best.diff) {
+              best = { diff, player: split.player, metrics: m };
+            }
+          });
+          if (best) displayStats(person, playerMetrics, best);
+          else statsDiv.textContent = 'No similar player found.';
+        });
+    })
+    .catch(err => {
+      statsDiv.textContent = 'Error loading stats.';
+      console.error(err);
+    });
+}
+
+function computeMetrics(stat, isPitcher) {
+  if (isPitcher) {
+    const bf = Number(stat.battersFaced) || 0;
+    const bbRate = bf ? (Number(stat.baseOnBalls) / bf) * 100 : 0;
+    const soRate = bf ? (Number(stat.strikeOuts) / bf) * 100 : 0;
+    return {
+      ERA: parseFloat(stat.era),
+      WAR: parseFloat(stat.winsAboveReplacement || 0),
+      BBp: bbRate,
+      SOp: soRate
+    };
+  } else {
+    const pa = Number(stat.plateAppearances) || 0;
+    const bbRate = pa ? (Number(stat.baseOnBalls) / pa) * 100 : 0;
+    const kRate = pa ? (Number(stat.strikeOuts) / pa) * 100 : 0;
+    return {
+      AVG: parseFloat(stat.avg),
+      WAR: parseFloat(stat.winsAboveReplacement || 0),
+      OBP: parseFloat(stat.obp),
+      OPS: parseFloat(stat.ops),
+      BBp: bbRate,
+      Kp: kRate
+    };
+  }
+}
+
+function similarity(a, b, isPitcher) {
+  let sum = 0;
+  if (isPitcher) {
+    sum += Math.abs(a.ERA - b.ERA);
+    sum += Math.abs(a.WAR - b.WAR);
+    sum += Math.abs(a.BBp - b.BBp);
+    sum += Math.abs(a.SOp - b.SOp);
+  } else {
+    sum += Math.abs(a.AVG - b.AVG);
+    sum += Math.abs(a.WAR - b.WAR);
+    sum += Math.abs(a.OBP - b.OBP);
+    sum += Math.abs(a.OPS - b.OPS);
+    sum += Math.abs(a.BBp - b.BBp);
+    sum += Math.abs(a.Kp - b.Kp);
+  }
+  return sum;
+}
+
+function displayStats(player, metrics, best) {
+  let table = '<h2>Similarity Results</h2><table border="1" cellpadding="5"><tr><th>Stat</th><th>' + player.fullName + '</th><th>' + best.player.fullName + '</th></tr>';
+  if (metrics.AVG !== undefined) {
+    table += `<tr><td>AVG</td><td>${metrics.AVG}</td><td>${best.metrics.AVG}</td></tr>`;
+    table += `<tr><td>WAR</td><td>${metrics.WAR}</td><td>${best.metrics.WAR}</td></tr>`;
+    table += `<tr><td>OBP</td><td>${metrics.OBP}</td><td>${best.metrics.OBP}</td></tr>`;
+    table += `<tr><td>OPS</td><td>${metrics.OPS}</td><td>${best.metrics.OPS}</td></tr>`;
+    table += `<tr><td>BB%</td><td>${metrics.BBp.toFixed(1)}</td><td>${best.metrics.BBp.toFixed(1)}</td></tr>`;
+    table += `<tr><td>K%</td><td>${metrics.Kp.toFixed(1)}</td><td>${best.metrics.Kp.toFixed(1)}</td></tr>`;
+  } else {
+    table += `<tr><td>ERA</td><td>${metrics.ERA}</td><td>${best.metrics.ERA}</td></tr>`;
+    table += `<tr><td>WAR</td><td>${metrics.WAR}</td><td>${best.metrics.WAR}</td></tr>`;
+    table += `<tr><td>BB%</td><td>${metrics.BBp.toFixed(1)}</td><td>${best.metrics.BBp.toFixed(1)}</td></tr>`;
+    table += `<tr><td>SO%</td><td>${metrics.SOp.toFixed(1)}</td><td>${best.metrics.SOp.toFixed(1)}</td></tr>`;
+  }
+  table += '</table>';
+  statsDiv.innerHTML = table;
 }
 </script>
 </body>
