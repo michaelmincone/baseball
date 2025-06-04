@@ -3,6 +3,27 @@ const resultsDiv = typeof document !== 'undefined' ? document.getElementById('re
 
 let debounceTimeout;
 
+async function fetchWarValue(mlbId, year, isPitcher, fetchFn = fetch) {
+  const url = isPitcher
+    ? 'https://www.baseball-reference.com/data/war_daily_pitch.txt'
+    : 'https://www.baseball-reference.com/data/war_daily_bat.txt';
+  const text = await fetchFn(url).then(r => r.text());
+  const lines = text.trim().split(/\n+/);
+  const headers = lines[0].split(',');
+  const idIdx = headers.indexOf('mlb_ID');
+  const yearIdx = headers.indexOf('year_ID');
+  const warIdx = headers.indexOf('WAR');
+  if (idIdx === -1 || yearIdx === -1 || warIdx === -1) return null;
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(',');
+    if (cols[idIdx] === String(mlbId) && cols[yearIdx] === String(year)) {
+      const war = parseFloat(cols[warIdx]);
+      return isNaN(war) ? null : war;
+    }
+  }
+  return null;
+}
+
 if (searchInput) {
   searchInput.addEventListener('input', function() {
     const query = this.value.trim();
@@ -51,6 +72,9 @@ async function fetchPlayerAndSimilar(id, fetchFn = fetch) {
     const statsObj = statsData.stats[0];
     if (!statsObj || !statsObj.splits.length) throw new Error('No stats');
     const playerMetrics = computeMetrics(statsObj.splits[0].stat, isPitcher);
+    if (playerMetrics.WAR == null) {
+      playerMetrics.WAR = await fetchWarValue(id, year, isPitcher, fetchFn);
+    }
     let best;
     for (let y = 1901; y <= 2023; y++) {
       const allData = await fetchFn(`https://statsapi.mlb.com/api/v1/stats?stats=season&group=${group}&season=${y}&playerPool=qualified&limit=300`).then(r => r.json());
@@ -64,7 +88,15 @@ async function fetchPlayerAndSimilar(id, fetchFn = fetch) {
         }
       });
     }
-    if (best) displayStats(person, playerMetrics, best, year);
+    if (best) {
+      if (best.metrics.WAR == null) {
+        best.metrics.WAR = await fetchWarValue(best.player.id, best.year, isPitcher, fetchFn);
+      }
+      if (playerMetrics.WAR == null) {
+        playerMetrics.WAR = await fetchWarValue(id, year, isPitcher, fetchFn);
+      }
+      displayStats(person, playerMetrics, best, year);
+    }
     else if (statsDiv) statsDiv.textContent = 'No similar player found.';
   } catch (err) {
     if (statsDiv) statsDiv.textContent = 'Error loading stats.';
@@ -144,5 +176,5 @@ function displayStats(player, metrics, best, year) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { computeMetrics, similarity, parseWar, fetchPlayerAndSimilar };
+  module.exports = { computeMetrics, similarity, parseWar, fetchPlayerAndSimilar, fetchWarValue };
 }
