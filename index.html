@@ -32,7 +32,7 @@ searchInput.addEventListener('input', function() {
 });
 
 function searchPlayers(query) {
-  fetch(`https://statsapi.mlb.com/api/v1/people/search?name=${encodeURIComponent(query)}&limit=10`)
+  fetch(`https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(query)}&sportId=1&limit=10`)
     .then(response => response.json())
     .then(data => {
       resultsDiv.innerHTML = '';
