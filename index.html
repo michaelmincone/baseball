@@ -55,42 +55,38 @@ function searchPlayers(query) {
       .catch(err => console.error(err));
 }
 
-function fetchPlayerAndSimilar(id) {
+async function fetchPlayerAndSimilar(id) {
   const year = document.getElementById('year').value || '2023';
   statsDiv.textContent = 'Loading stats...';
-  fetch(`https://statsapi.mlb.com/api/v1/people/${id}`)
-    .then(r => r.json())
-    .then(data => {
-      const person = data.people[0];
-      const isPitcher = person.primaryPosition && person.primaryPosition.abbreviation === 'P';
-      const group = isPitcher ? 'pitching' : 'hitting';
-      return fetch(`https://statsapi.mlb.com/api/v1/people/${id}/stats?stats=season&group=${group}&season=${year}`)
-        .then(r2 => r2.json())
-        .then(statsData => ({ person, isPitcher, group, statsObj: statsData.stats[0] }));
-    })
-    .then(({ person, isPitcher, group, statsObj }) => {
-      if (!statsObj || !statsObj.splits.length) throw new Error('No stats');
-      const playerMetrics = computeMetrics(statsObj.splits[0].stat, isPitcher);
-      fetch(`https://statsapi.mlb.com/api/v1/stats?stats=season&group=${group}&season=${year}&playerPool=qualified&limit=300`)
-        .then(r2 => r2.json())
-        .then(allData => {
-          let best;
-          allData.stats[0].splits.forEach(split => {
-            if (split.player.id === id) return;
-            const m = computeMetrics(split.stat, isPitcher);
-            const diff = similarity(playerMetrics, m, isPitcher);
-            if (!best || diff < best.diff) {
-              best = { diff, player: split.player, metrics: m };
-            }
-          });
-          if (best) displayStats(person, playerMetrics, best, year);
-          else statsDiv.textContent = 'No similar player found.';
-        });
-    })
-  .catch(err => {
+  try {
+    const personData = await fetch(`https://statsapi.mlb.com/api/v1/people/${id}`).then(r => r.json());
+    const person = personData.people[0];
+    const isPitcher = person.primaryPosition && person.primaryPosition.abbreviation === 'P';
+    const group = isPitcher ? 'pitching' : 'hitting';
+    const statsData = await fetch(`https://statsapi.mlb.com/api/v1/people/${id}/stats?stats=season&group=${group}&season=${year}`)
+      .then(r => r.json());
+    const statsObj = statsData.stats[0];
+    if (!statsObj || !statsObj.splits.length) throw new Error('No stats');
+    const playerMetrics = computeMetrics(statsObj.splits[0].stat, isPitcher);
+    let best;
+    for (let y = 1901; y <= 2023; y++) {
+      const allData = await fetch(`https://statsapi.mlb.com/api/v1/stats?stats=season&group=${group}&season=${y}&playerPool=qualified&limit=300`).then(r => r.json());
+      if (!allData.stats || !allData.stats[0] || !allData.stats[0].splits) continue;
+      allData.stats[0].splits.forEach(split => {
+        if (split.player.id === id && y.toString() === year) return;
+        const m = computeMetrics(split.stat, isPitcher);
+        const diff = similarity(playerMetrics, m, isPitcher);
+        if (!best || diff < best.diff) {
+          best = { diff, player: split.player, metrics: m, year: y };
+        }
+      });
+    }
+    if (best) displayStats(person, playerMetrics, best, year);
+    else statsDiv.textContent = 'No similar player found.';
+  } catch (err) {
     statsDiv.textContent = 'Error loading stats.';
     console.error(err);
-  });
+  }
 }
 
 function parseWar(stat) {
@@ -145,7 +141,7 @@ function similarity(a, b, isPitcher) {
 }
 
 function displayStats(player, metrics, best, year) {
-  let table = `<h2>Similarity Results (${year})</h2><table border="1" cellpadding="5"><tr><th>Stat</th><th>${player.fullName}</th><th>${best.player.fullName}</th></tr>`;
+  let table = `<h2>Similarity Results (${year})</h2><table border="1" cellpadding="5"><tr><th>Stat</th><th>${player.fullName}</th><th>${best.player.fullName} (${best.year})</th></tr>`;
   if (metrics.AVG !== undefined) {
     table += `<tr><td>AVG</td><td>${metrics.AVG}</td><td>${best.metrics.AVG}</td></tr>`;
     table += `<tr><td>WAR</td><td>${metrics.WAR ?? 'N/A'}</td><td>${best.metrics.WAR ?? 'N/A'}</td></tr>`;
