@@ -3,10 +3,16 @@ const resultsDiv = typeof document !== 'undefined' ? document.getElementById('re
 
 let debounceTimeout;
 
+const CORS_PROXY = 'https://cors.isomorphic-git.org/';
+
+function maybeProxy(url) {
+  return typeof window !== 'undefined' ? `${CORS_PROXY}${url}` : url;
+}
+
 async function fetchWarValue(mlbId, year, isPitcher, fetchFn = fetch) {
   const url = isPitcher
-    ? 'https://www.baseball-reference.com/data/war_daily_pitch.txt'
-    : 'https://www.baseball-reference.com/data/war_daily_bat.txt';
+    ? maybeProxy('https://www.baseball-reference.com/data/war_daily_pitch.txt')
+    : maybeProxy('https://www.baseball-reference.com/data/war_daily_bat.txt');
   const text = await fetchFn(url).then(r => r.text());
   const lines = text.trim().split(/\n+/);
   const headers = lines[0].split(',');
