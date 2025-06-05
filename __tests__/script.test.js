@@ -46,9 +46,7 @@ describe('similarity search', () => {
     const db = {
       pitching: {
         '2023': [
-          { id: 1, name: 'Pitcher One', stat: { era: '3.00', battersFaced: '100', baseOnBalls: '10', strikeOuts: '20', war: '2' } }
-        ],
-        '2022': [
+          { id: 1, name: 'Pitcher One', stat: { era: '3.00', battersFaced: '100', baseOnBalls: '10', strikeOuts: '20', war: '2' } },
           { id: 2, name: 'Pitcher Two', stat: { era: '3.05', battersFaced: '100', baseOnBalls: '11', strikeOuts: '21', war: '1.9' } }
         ]
       },
@@ -56,7 +54,7 @@ describe('similarity search', () => {
     };
 
     await fetchPlayerAndSimilar(1, () => Promise.resolve(), db);
-    expect(document.getElementById('playerStats').innerHTML).toContain('Pitcher Two (2022)');
+    expect(document.getElementById('playerStats').innerHTML).toContain('Pitcher Two (2023)');
   });
 });
 
