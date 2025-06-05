@@ -3,10 +3,10 @@ const resultsDiv = typeof document !== 'undefined' ? document.getElementById('re
 
 let debounceTimeout;
 
-const CORS_PROXY = 'https://cors.isomorphic-git.org/';
+const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/';
 
 function maybeProxy(url) {
-  return typeof window !== 'undefined' ? `${CORS_PROXY}${url}` : url;
+  return `${CORS_PROXY}${url}`;
 }
 
 async function fetchWarValue(mlbId, year, isPitcher, fetchFn = fetch) {
