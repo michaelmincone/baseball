@@ -1,6 +1,6 @@
 const searchInput = typeof document !== 'undefined' ? document.getElementById('search') : null;
 const resultsDiv = typeof document !== 'undefined' ? document.getElementById('results') : null;
- 
+
 let debounceTimeout;
 
 async function fetchWarValue(mlbId, year, isPitcher, fetchFn = fetch) {
