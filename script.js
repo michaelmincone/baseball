@@ -3,6 +3,12 @@ const resultsDiv = typeof document !== 'undefined' ? document.getElementById('re
 
 let debounceTimeout;
 
+let statsDatabase = null;
+if (typeof window !== "undefined" && typeof fetch === "function") {
+  fetch("statsDatabase.json").then(r => r.json()).then(d => { statsDatabase = d; }).catch(err => console.warn("Stats DB not loaded", err));
+}
+
+
 const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/';
 
 function maybeProxy(url) {
@@ -63,12 +69,43 @@ function searchPlayers(query) {
       .catch(err => console.error(err));
 }
 
-async function fetchPlayerAndSimilar(id, fetchFn = fetch) {
+async function fetchPlayerAndSimilar(id, fetchFn = fetch, db = statsDatabase) {
   const yearInput = typeof document !== 'undefined' ? document.getElementById('year') : null;
   const year = yearInput ? yearInput.value || '2023' : '2023';
   const statsDiv = typeof document !== 'undefined' ? document.getElementById('playerStats') : null;
   if (statsDiv) statsDiv.textContent = 'Loading stats...';
   try {
+    if (db) {
+      const yStr = String(year);
+      const hitSeason = db.hitting[yStr] || [];
+      const pitchSeason = db.pitching[yStr] || [];
+      let record = hitSeason.find(p => p.id === id);
+      let isPitcher = false;
+      if (!record) {
+        record = pitchSeason.find(p => p.id === id);
+        isPitcher = true;
+      }
+      if (record) {
+        const playerMetrics = computeMetrics(record.stat, isPitcher);
+        let best;
+        const groups = db[isPitcher ? 'pitching' : 'hitting'];
+        for (const [yKey, arr] of Object.entries(groups)) {
+          arr.forEach(p => {
+            if (p.id === id && yKey === yStr) return;
+            const m = computeMetrics(p.stat, isPitcher);
+            const diff = similarity(playerMetrics, m, isPitcher);
+            if (!best || diff < best.diff) {
+              best = { diff, player: { id: p.id, fullName: p.name }, metrics: m, year: yKey };
+            }
+          });
+        }
+        if (best) {
+          displayStats({ fullName: record.name }, playerMetrics, best, yStr);
+        } else if (statsDiv) statsDiv.textContent = 'No similar player found.';
+        return;
+      }
+    }
+
     const personData = await fetchFn(`https://statsapi.mlb.com/api/v1/people/${id}`).then(r => r.json());
     const person = personData.people[0];
     const isPitcher = person.primaryPosition && person.primaryPosition.abbreviation === 'P';

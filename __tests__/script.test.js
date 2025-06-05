@@ -41,23 +41,21 @@ describe('metrics utilities', () => {
 });
 
 describe('similarity search', () => {
-  test('fetchPlayerAndSimilar selects the closest player', async () => {
+  test('fetchPlayerAndSimilar selects the closest player from local db', async () => {
     document.body.innerHTML = '<input id="year" value="2023"><div id="playerStats"></div>';
-    const responses = {
-      'https://statsapi.mlb.com/api/v1/people/1': { people: [{ primaryPosition: { abbreviation: 'P' }, fullName: 'Pitcher One' }] },
-      'https://statsapi.mlb.com/api/v1/people/1/stats?stats=season&group=pitching&season=2023': {
-        stats: [{ splits: [{ stat: { era: '3.00', battersFaced: '100', baseOnBalls: '10', strikeOuts: '20', war: '2' } }] }]
+    const db = {
+      pitching: {
+        '2023': [
+          { id: 1, name: 'Pitcher One', stat: { era: '3.00', battersFaced: '100', baseOnBalls: '10', strikeOuts: '20', war: '2' } }
+        ],
+        '2022': [
+          { id: 2, name: 'Pitcher Two', stat: { era: '3.05', battersFaced: '100', baseOnBalls: '11', strikeOuts: '21', war: '1.9' } }
+        ]
       },
-      'https://statsapi.mlb.com/api/v1/stats?stats=season&group=pitching&season=2022&playerPool=qualified&limit=300': {
-        stats: [{ splits: [{ player: { id: 2, fullName: 'Pitcher Two' }, stat: { era: '3.05', battersFaced: '100', baseOnBalls: '11', strikeOuts: '21', war: '1.9' } }] }]
-      }
+      hitting: {}
     };
-    const fetchMock = jest.fn(async url => {
-      const data = responses[url] || { stats: [{ splits: [] }] };
-      return { json: async () => data };
-    });
 
-    await fetchPlayerAndSimilar(1, fetchMock);
+    await fetchPlayerAndSimilar(1, () => Promise.resolve(), db);
     expect(document.getElementById('playerStats').innerHTML).toContain('Pitcher Two (2022)');
   });
 });

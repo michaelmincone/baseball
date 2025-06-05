@@ -1,0 +1,62 @@
+{
+  "hitting": {
+    "2023": [
+      {
+        "id": 10,
+        "name": "Hitter One",
+        "stat": {
+          "avg": "0.280",
+          "obp": "0.350",
+          "ops": "0.800",
+          "plateAppearances": "100",
+          "baseOnBalls": "10",
+          "strikeOuts": "20",
+          "war": "3.2"
+        }
+      }
+    ],
+    "2022": [
+      {
+        "id": 20,
+        "name": "Hitter Two",
+        "stat": {
+          "avg": "0.285",
+          "obp": "0.355",
+          "ops": "0.810",
+          "plateAppearances": "100",
+          "baseOnBalls": "9",
+          "strikeOuts": "19",
+          "war": "3.1"
+        }
+      }
+    ]
+  },
+  "pitching": {
+    "2023": [
+      {
+        "id": 1,
+        "name": "Pitcher One",
+        "stat": {
+          "era": "3.00",
+          "battersFaced": "100",
+          "baseOnBalls": "10",
+          "strikeOuts": "20",
+          "war": "2"
+        }
+      }
+    ],
+    "2022": [
+      {
+        "id": 2,
+        "name": "Pitcher Two",
+        "stat": {
+          "era": "3.05",
+          "battersFaced": "100",
+          "baseOnBalls": "11",
+          "strikeOuts": "21",
+          "war": "1.9"
+        }
+      }
+    ]
+  }
+}
